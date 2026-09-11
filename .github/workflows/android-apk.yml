@@ -13,9 +13,9 @@ permissions:
   contents: read
 
 jobs:
-  build-debug-apk:
+  build-standalone-apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
 
     steps:
       - name: Checkout
@@ -42,16 +42,16 @@ jobs:
         working-directory: apps/mobile
         run: npx expo prebuild --platform android --clean --no-install
 
-      - name: Build debug APK
+      - name: Build standalone release APK
         working-directory: apps/mobile/android
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleRelease
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: tripbanban-android-debug
-          path: apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          name: tripbanban-android-standalone
+          path: apps/mobile/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 14
