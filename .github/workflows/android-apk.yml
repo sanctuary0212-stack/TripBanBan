@@ -2,6 +2,12 @@ name: Android APK
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "apps/mobile/**"
+      - "packages/domain/**"
+      - "package.json"
+      - ".github/workflows/android-apk.yml"
 
 permissions:
   contents: read
