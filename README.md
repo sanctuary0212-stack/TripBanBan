@@ -1,40 +1,72 @@
 # TripBanBan
 
-TripBanBan 專案主倉庫。
+TripBanBan 是一個以「快速建立、看懂並調整旅行每日節奏」為核心的行程規劃專案。
 
-目前先建立 **technology-agnostic monorepo skeleton**，把產品、前端、後端、共用模組、文件與測試的邊界先整理好；在正式決定 Web / Mobile / Backend 技術棧前，不先鎖死框架。
+目前進入 **Web-first MVP** 階段：前端與 API 先放在 Next.js App Router，核心旅程資料模型獨立放在 shared domain package，保留未來 Mobile App 與獨立 backend service 的演進空間。
+
+## Tech baseline
+
+- Node.js 24 LTS
+- npm workspaces
+- Next.js 16.3.3
+- React 19.2
+- TypeScript
+- GitHub Actions CI
 
 ## Repository structure
 
 ```text
 TripBanBan/
-├─ apps/              # 使用者端應用（Web / Mobile 等）
-├─ services/          # Backend API、worker、integration services
-├─ packages/          # 跨應用共用模組、型別、domain logic
-├─ docs/              # 架構、產品與開發文件
-├─ scripts/           # 開發、建置、部署輔助腳本
-├─ tests/             # 跨模組 / integration / e2e tests
+├─ apps/
+│  └─ web/                 # Next.js Web MVP + route handlers
+├─ packages/
+│  └─ domain/              # Trip / Day / Stop shared domain model
+├─ services/               # Future standalone backend/integrations
+├─ docs/
+│  ├─ architecture.md
+│  └─ mvp.md
+├─ scripts/
+├─ tests/
+├─ .github/workflows/ci.yml
 ├─ .editorconfig
 ├─ .gitignore
+├─ .nvmrc
+├─ package.json
 └─ README.md
 ```
 
-## Initial principles
+## Run locally
 
-1. **先分離 domain 與 UI**：核心旅程/行程資料模型不要綁定單一前端框架。
-2. **API contract 明確化**：前後端透過穩定 contract 溝通，方便未來 Web / Mobile 共用。
-3. **共用邏輯集中**：共用型別、validation、utilities 放在 `packages/`。
-4. **文件跟著程式走**：重要架構決策放在 `docs/`，避免只存在聊天紀錄。
-5. **避免過早鎖定技術棧**：等 MVP 功能與部署需求確認後，再加入 framework-specific scaffold。
+```bash
+nvm use
+npm install
+npm run dev
+```
 
-## Next milestones
+Then open `http://localhost:3000`.
 
-- 定義 MVP 使用情境與核心功能
-- 決定 Web / Mobile 優先順序
-- 決定 frontend / backend 技術棧
-- 建立 domain model 與 API contract
-- 加入 CI、lint、test、deployment pipeline
+Useful endpoints:
 
-## Status
+- `GET /api/health`
+- `GET /api/trips`
 
-Project scaffold initialized.
+## Verify
+
+```bash
+npm run typecheck
+npm run build
+```
+
+## Architecture principles
+
+1. **Domain 與 UI 分離**：核心 Trip / Day / Stop model 不綁定特定 UI framework。
+2. **共用 contract**：Web、未來 Mobile 與 backend 共用一致的 domain types。
+3. **逐步拆服務**：MVP 先以 Next.js route handlers 快速驗證；需求成長後再把 backend 拆到 `services/`。
+4. **文件跟著程式走**：產品與架構決策保存在 `docs/`。
+5. **CI 當基本門檻**：PR 先通過 typecheck 與 production build。
+
+## MVP next milestone
+
+下一個里程碑是完成 Trip CRUD + persistence：使用者可以建立行程、加入多天與景點、重新整理後資料仍存在，並分享唯讀行程網址。
+
+See `docs/mvp.md` for the product slices and definition of done.
