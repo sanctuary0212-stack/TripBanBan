@@ -1,0 +1,48 @@
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE / editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# JavaScript / TypeScript
+node_modules/
+dist/
+build/
+.next/
+.nuxt/
+coverage/
+.pnpm-store/
+.yarn/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Mobile
+.gradle/
+*.apk
+*.aab
+Pods/
+DerivedData/
+
+# Temporary files
+.tmp/
+tmp/
+.cache/
