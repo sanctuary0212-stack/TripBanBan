@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - '.tripbanban_restore/part_13'
+      - '.tripbanban_restore/part_22'
 
 permissions:
   contents: write
