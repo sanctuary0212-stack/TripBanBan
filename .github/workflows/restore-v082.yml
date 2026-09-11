@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - '.tripbanban_restore/part_22'
+      - '.tripbanban_restore/part_13'
 
 permissions:
   contents: write
@@ -16,12 +16,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Reconstruct v0.8.2 source
+      - name: Reconstruct and verify v0.8.2 source
         shell: bash
         run: |
           set -euo pipefail
           cat .tripbanban_restore/part_* > /tmp/tripbanban_v082.b64
           base64 -d /tmp/tripbanban_v082.b64 > /tmp/tripbanban_v082.zip
+          echo "211d0b77b646b3c3626bb6c17f958ac7cb8b6dfa0a20ed7080db81025f3dbb75  /tmp/tripbanban_v082.zip" | sha256sum -c -
           mkdir -p /tmp/tripbanban_v082
           unzip -q /tmp/tripbanban_v082.zip -d /tmp/tripbanban_v082
 
