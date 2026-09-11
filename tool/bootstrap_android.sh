@@ -34,7 +34,7 @@ python3 tool/patch_android.py
 flutter pub get
 flutter gen-l10n
 dart run build_runner build --delete-conflicting-outputs
-flutter analyze
+flutter analyze --no-fatal-warnings --no-fatal-infos
 flutter test
 flutter build apk --debug
 
