@@ -1,7 +1,7 @@
 name: tripbanban_app
 description: 旅行伴伴 TripBanBan - Android-first 旅行分帳 App.
 publish_to: "none"
-version: 0.8.3+83
+version: 0.8.4+84
 
 environment:
   sdk: ">=3.12.0 <4.0.0"
@@ -42,7 +42,6 @@ dependencies:
 
   # Best-effort background backup scheduling
   workmanager: ^0.10.10
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
