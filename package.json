@@ -11,7 +11,10 @@
   },
   "scripts": {
     "dev": "npm run dev -w @tripbanban/web",
+    "mobile": "npm run start -w @tripbanban/mobile",
+    "android": "npm run android -w @tripbanban/mobile",
     "build": "npm run build -w @tripbanban/web",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "doctor:mobile": "npm run doctor -w @tripbanban/mobile"
   }
 }
