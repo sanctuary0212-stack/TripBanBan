@@ -13,6 +13,23 @@ if [ ! -d android ]; then
   flutter create --platforms=android --org com.tripbanban --project-name tripbanban_app .
 fi
 
+# Flutter create may generate a default test that references MyApp, which this
+# project does not define. Keep the project's real tests and remove only that
+# generated placeholder.
+rm -f test/widget_test.dart
+
+# Dart treats $ inside normal strings as interpolation. The currency catalog
+# intentionally stores literal dollar symbols, so make those literals raw.
+python3 - <<'PY'
+from pathlib import Path
+
+path = Path('lib/domain/currency_catalog.dart')
+text = path.read_text(encoding='utf-8')
+for symbol in ('A$', 'R$', 'CA$', 'HK$', 'MX$', 'NZ$', 'NT$', '$', 'EC$'):
+    text = text.replace(f"symbol: '{symbol}'", f"symbol: r'{symbol}'")
+path.write_text(text, encoding='utf-8')
+PY
+
 python3 tool/patch_android.py
 flutter pub get
 flutter gen-l10n
