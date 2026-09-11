@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../app/app_controller.dart';
+import '../features/premium/premium_service.dart';
 import '../widgets/currency_picker.dart';
+import '../widgets/landmark_badge.dart';
 
 class CreateTripScreen extends StatefulWidget {
   const CreateTripScreen({super.key, required this.controller});
@@ -36,6 +38,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final premium = widget.controller.services.premium.isPremium;
     return Scaffold(
       appBar: AppBar(title: const Text('建立新旅程')),
       body: ListView(
@@ -70,7 +73,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
               Text('旅伴', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
               const Spacer(),
               TextButton.icon(
-                onPressed: () => setState(() => members.add(TextEditingController())),
+                onPressed: () => _addMemberField(premium),
                 icon: const Icon(Icons.person_add_alt_1),
                 label: const Text('新增旅伴'),
               ),
@@ -96,6 +99,14 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
               ),
             );
           }),
+          if (!premium)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                '免費版每趟旅程最多 3 位旅伴；${PremiumService.productLabel} ${PremiumService.priceLabel} 可使用更多旅伴。',
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12),
+              ),
+            ),
           const SizedBox(height: 24),
           FilledButton.icon(
             onPressed: saving ? null : _save,
@@ -107,6 +118,22 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _addMemberField(bool premium) async {
+    if (!premium && members.length >= 3) {
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          icon: const Icon(Icons.workspace_premium_rounded, size: 36),
+          title: const Text('需要 TripBanBan Plus'),
+          content: const Text('免費版每趟旅程最多 3 人。Plus 為 US\$1.99 一次買斷，可使用更多旅伴。'),
+          actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('知道了'))],
+        ),
+      );
+      return;
+    }
+    if (mounted) setState(() => members.add(TextEditingController()));
   }
 
   Widget _dateButton(String label, DateTime? value, ValueChanged<DateTime> onPicked) {
@@ -140,11 +167,19 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('請輸入旅程名稱並至少保留一位旅伴。')));
       return;
     }
+    if (!widget.controller.services.premium.isPremium && memberNames.length > 3) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('免費版每趟旅程最多 3 位旅伴。')));
+      return;
+    }
+
     setState(() => saving = true);
     try {
+      final destination = destinationController.text.trim();
+      final inferredCountry = inferCountryCode('$destination $name');
       final id = await widget.controller.services.repository.createTrip(
         name: name,
-        destination: destinationController.text,
+        destination: destination,
+        countryCode: inferredCountry.isEmpty ? null : inferredCountry,
         startDate: startDate,
         endDate: endDate,
         baseCurrency: currency,
