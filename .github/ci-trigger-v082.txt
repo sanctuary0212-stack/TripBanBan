@@ -1,1 +1,1 @@
-TripBanBan v0.8.2 Android CI trigger
+Trigger Android APK validation for v0.8.3 logo fix.
