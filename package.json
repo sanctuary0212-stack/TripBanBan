@@ -1,0 +1,17 @@
+{
+  "name": "tripbanban",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "dev": "npm run dev -w @tripbanban/web",
+    "build": "npm run build -w @tripbanban/web",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  }
+}
