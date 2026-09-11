@@ -9,8 +9,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   scheme: "tripbanban",
   userInterfaceStyle: "automatic",
   android: {
-    package: "com.tripbanban.app",
-    edgeToEdgeEnabled: true
+    package: "com.tripbanban.app"
   },
   extra: {
     ...config.extra,
