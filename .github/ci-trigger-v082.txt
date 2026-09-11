@@ -1,1 +1,1 @@
-Trigger Android APK validation for v0.8.3 fixed launcher logo.
+Trigger Android APK validation for v0.8.3 validated launcher logo.
