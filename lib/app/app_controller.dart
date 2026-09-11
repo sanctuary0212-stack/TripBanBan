@@ -27,6 +27,11 @@ class AppController extends ChangeNotifier {
         'en' => const Locale('en'),
         'ja' => const Locale('ja'),
         'ko' => const Locale('ko'),
+        'fr' => const Locale('fr'),
+        'de' => const Locale('de'),
+        'es' => const Locale('es'),
+        'it' => const Locale('it'),
+        'th' => const Locale('th'),
         _ => const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
       };
 
@@ -66,7 +71,7 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> setLanguage(String code) async {
-    if (!const {'zh_Hant', 'zh_Hans', 'en', 'ja', 'ko'}.contains(code)) return;
+    if (!const {'zh_Hant', 'zh_Hans', 'en', 'ja', 'ko', 'fr', 'de', 'es', 'it', 'th'}.contains(code)) return;
     _languageCode = code;
     await services.repository.setSetting(_languageKey, code);
     notifyListeners();
