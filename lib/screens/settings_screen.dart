@@ -94,11 +94,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ]),
           const SizedBox(height: 12),
-          _section('關於', [
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 10),
-              child: Center(child: Text('v0.8.3', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18))),
+          _section('關於', const [
+            Padding(
+              padding: EdgeInsets.only(top: 8, bottom: 6),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('v0.8.4', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20)),
+              ),
             ),
+            _ReleaseNote(text: '更新 App Logo 與 Android launcher icon'),
+            _ReleaseNote(text: '旅程卡片加入依目的地顯示的地標剪影圖樣'),
+            _ReleaseNote(text: '多國語言擴充至 10 種常用語言'),
+            _ReleaseNote(text: '旅程頁修正：已有專案後仍可建立新旅程'),
+            _ReleaseNote(text: '結算頁可切換旅程，並優化每人支出欄位與最終轉帳建議'),
+            _ReleaseNote(text: '持續支援公基金退款與 Plus / Google Drive 功能'),
           ]),
         ],
       ),
@@ -230,21 +239,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
       'en': 'English',
       'ja': '日本語',
       'ko': '한국어',
+      'fr': 'Français',
+      'de': 'Deutsch',
+      'es': 'Español',
+      'it': 'Italiano',
+      'th': 'ไทย',
     };
     final code = await showModalBottomSheet<String>(
       context: context,
+      isScrollControlled: true,
       builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final entry in options.entries)
-              RadioListTile<String>(
-                value: entry.key,
-                groupValue: widget.controller.languageCode,
-                title: Text(entry.value),
-                onChanged: (value) => Navigator.pop(context, value),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * .75),
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 18, 20, 8),
+                child: Text('選擇語言', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
               ),
-          ],
+              for (final entry in options.entries)
+                RadioListTile<String>(
+                  value: entry.key,
+                  groupValue: widget.controller.languageCode,
+                  title: Text(entry.value),
+                  onChanged: (value) => Navigator.pop(context, value),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -368,6 +390,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'en' => 'English',
         'ja' => '日本語',
         'ko' => '한국어',
+        'fr' => 'Français',
+        'de' => 'Deutsch',
+        'es' => 'Español',
+        'it' => 'Italiano',
+        'th' => 'ไทย',
         _ => '繁體中文',
       };
 }
@@ -384,6 +411,27 @@ class _FeatureLine extends StatelessWidget {
           children: [
             Icon(icon, size: 19, color: const Color(0xFF00796B)),
             const SizedBox(width: 9),
+            Expanded(child: Text(text)),
+          ],
+        ),
+      );
+}
+
+class _ReleaseNote extends StatelessWidget {
+  const _ReleaseNote({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(top: 7),
+              child: Icon(Icons.circle, size: 6),
+            ),
+            const SizedBox(width: 10),
             Expanded(child: Text(text)),
           ],
         ),
