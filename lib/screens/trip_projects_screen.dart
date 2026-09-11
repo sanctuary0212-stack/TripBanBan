@@ -5,6 +5,7 @@ import '../data/local/app_database.dart';
 import '../domain/ledger_models.dart';
 import '../domain/money_text.dart';
 import '../localization/app_strings.dart';
+import '../widgets/landmark_badge.dart';
 import 'create_trip_screen.dart';
 import 'trip_detail_screen.dart';
 
@@ -35,7 +36,7 @@ class TripProjectsScreen extends StatelessWidget {
                     Text(strings.t('noTrips'), textAlign: TextAlign.center),
                     const SizedBox(height: 18),
                     FilledButton.icon(
-                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CreateTripScreen(controller: controller))),
+                      onPressed: () => _openCreateTrip(context),
                       icon: const Icon(Icons.add, size: 25),
                       label: Text(strings.t('newTrip')),
                     ),
@@ -44,14 +45,39 @@ class TripProjectsScreen extends StatelessWidget {
               ),
             );
           }
+
           return ListView.separated(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-            itemCount: trips.length,
+            itemCount: trips.length + 1,
             separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, index) => _TripCard(controller: controller, trip: trips[index]),
+            itemBuilder: (context, index) {
+              if (index == trips.length) {
+                return Padding(
+                  padding: const EdgeInsets.only(top: 4, bottom: 12),
+                  child: Center(
+                    child: FilledButton.icon(
+                      onPressed: () => _openCreateTrip(context),
+                      icon: const Icon(Icons.add_circle_outline, size: 25),
+                      label: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                        child: Text(strings.t('newTrip')),
+                      ),
+                    ),
+                  ),
+                );
+              }
+              return _TripCard(controller: controller, trip: trips[index]);
+            },
           );
         },
       ),
+    );
+  }
+
+  Future<void> _openCreateTrip(BuildContext context) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => CreateTripScreen(controller: controller)),
     );
   }
 }
@@ -68,12 +94,17 @@ class _TripCard extends StatelessWidget {
       builder: (context, snapshot) {
         final ledger = snapshot.data;
         final status = ledger?.status ?? TripAccountingStatus.notStarted;
+        final strings = AppStrings(controller.languageCode);
         final statusLabel = switch (status) {
-          TripAccountingStatus.notStarted => '未開始',
-          TripAccountingStatus.pendingSettlement => '待結算',
-          TripAccountingStatus.settled => '已結清',
+          TripAccountingStatus.notStarted => strings.t('notStarted'),
+          TripAccountingStatus.pendingSettlement => strings.t('pending'),
+          TripAccountingStatus.settled => strings.t('settled'),
         };
         final selected = controller.selectedTripId == trip.id;
+        final destinationLabel = [
+          if (trip.destination?.trim().isNotEmpty == true) trip.destination!.trim(),
+          trip.name,
+        ].join(' ');
         return Card(
           clipBehavior: Clip.antiAlias,
           child: InkWell(
@@ -89,14 +120,11 @@ class _TripCard extends StatelessWidget {
               padding: const EdgeInsets.all(18),
               child: Row(
                 children: [
-                  Container(
-                    width: 54,
-                    height: 54,
-                    decoration: BoxDecoration(
-                      color: selected ? Theme.of(context).colorScheme.primaryContainer : const Color(0xFFEAF3F1),
-                      borderRadius: BorderRadius.circular(17),
-                    ),
-                    child: const Icon(Icons.luggage_rounded),
+                  LandmarkBadge(
+                    label: destinationLabel,
+                    countryCode: trip.countryCode,
+                    selected: selected,
+                    size: 58,
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -117,9 +145,9 @@ class _TripCard extends StatelessWidget {
                           runSpacing: 8,
                           children: [
                             _pill(statusLabel),
-                            if (ledger != null) _pill('總支出 ${MoneyText.formatMinor(ledger.totalExpenseMinor, trip.baseCurrency)}'),
+                            if (ledger != null) _pill('${strings.t('totalExpense')} ${MoneyText.formatMinor(ledger.totalExpenseMinor, trip.baseCurrency)}'),
                             if (ledger != null && ledger.fundBalanceMinor != 0)
-                              _pill('公基金 ${MoneyText.formatMinor(ledger.fundBalanceMinor, trip.baseCurrency)}'),
+                              _pill('${strings.t('publicFund')} ${MoneyText.formatMinor(ledger.fundBalanceMinor, trip.baseCurrency)}'),
                           ],
                         ),
                       ],
