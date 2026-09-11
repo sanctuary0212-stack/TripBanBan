@@ -1,0 +1,9 @@
+{
+  "@@locale": "es",
+  "appName": "TripBanBan",
+  "myTrips": "Mis viajes",
+  "createTrip": "Crear viaje",
+  "records": "Gastos",
+  "settlement": "Liquidación",
+  "settings": "Ajustes"
+}
