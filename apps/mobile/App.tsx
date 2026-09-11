@@ -1,7 +1,7 @@
-import { StatusBar } from "expo-status-bar";
 import {
   SafeAreaView,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   View
@@ -11,7 +11,7 @@ import { demoTrip } from "@tripbanban/domain";
 export default function App() {
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar barStyle="dark-content" backgroundColor="#f5f3ee" />
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.hero}>
           <Text style={styles.eyebrow}>TRIPBANBAN</Text>
