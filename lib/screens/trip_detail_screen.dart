@@ -1,0 +1,222 @@
+import 'package:flutter/material.dart';
+
+import '../app/app_controller.dart';
+import '../data/local/app_database.dart';
+import '../domain/ledger_models.dart';
+import '../domain/money_input.dart';
+import '../domain/money_text.dart';
+import 'add_expense_screen.dart';
+import 'manage_members_screen.dart';
+
+class TripDetailScreen extends StatefulWidget {
+  const TripDetailScreen({super.key, required this.controller, required this.tripId});
+  final AppController controller;
+  final String tripId;
+
+  @override
+  State<TripDetailScreen> createState() => _TripDetailScreenState();
+}
+
+class _TripDetailScreenState extends State<TripDetailScreen> {
+  int refresh = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<TripRow?>(
+      future: widget.controller.services.repository.getTrip(widget.tripId),
+      builder: (context, tripSnapshot) {
+        final trip = tripSnapshot.data;
+        if (trip == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        return Scaffold(
+          appBar: AppBar(title: Text(trip.name)),
+          body: FutureBuilder<LedgerSnapshot>(
+            key: ValueKey(refresh),
+            future: widget.controller.services.ledger.calculate(trip.id),
+            builder: (context, ledgerSnapshot) {
+              final ledger = ledgerSnapshot.data;
+              return ListView(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                children: [
+                  // Deliberately text-only: individual trip detail should not show destination imagery.
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(trip.name, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                          const SizedBox(height: 8),
+                          Text('${trip.destination ?? '旅行專案'} · ${trip.baseCurrency}'),
+                          if (ledger != null) ...[
+                            const SizedBox(height: 18),
+                            Row(
+                              children: [
+                                Expanded(child: _metric('總支出', MoneyText.formatMinor(ledger.totalExpenseMinor, trip.baseCurrency))),
+                                Expanded(child: _metric('公基金餘額', MoneyText.formatMinor(ledger.fundBalanceMinor, trip.baseCurrency))),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  StreamBuilder<List<MemberRow>>(
+                    stream: widget.controller.services.repository.watchMembers(trip.id),
+                    builder: (context, membersSnapshot) {
+                      final members = membersSnapshot.data ?? const <MemberRow>[];
+                      return Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(18),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Text('旅伴', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+                                  const Spacer(),
+                                  TextButton.icon(
+                                    onPressed: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (_) => ManageMembersScreen(controller: widget.controller, tripId: trip.id)),
+                                    ),
+                                    icon: const Icon(Icons.group_outlined),
+                                    label: const Text('管理旅伴'),
+                                  ),
+                                ],
+                              ),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [for (final member in members) Chip(label: Text(member.displayName))],
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(18),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('公基金', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+                          const SizedBox(height: 12),
+                          if (ledger != null)
+                            Text(MoneyText.formatMinor(ledger.fundBalanceMinor, trip.baseCurrency), style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
+                          const SizedBox(height: 14),
+                          Row(
+                            children: [
+                              Expanded(child: OutlinedButton.icon(onPressed: () => _fundAction(trip, refund: false), icon: const Icon(Icons.add), label: const Text('繳入 / 補充'))),
+                              const SizedBox(width: 10),
+                              Expanded(child: OutlinedButton.icon(onPressed: () => _fundAction(trip, refund: true), icon: const Icon(Icons.undo), label: const Text('退款'))),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: () async {
+                      await Navigator.push(context, MaterialPageRoute(builder: (_) => AddExpenseScreen(controller: widget.controller, initialTripId: trip.id)));
+                      if (mounted) setState(() => refresh++);
+                    },
+                    icon: const Icon(Icons.add),
+                    label: const Padding(padding: EdgeInsets.symmetric(vertical: 13), child: Text('新增支出')),
+                  ),
+                  const SizedBox(height: 40),
+                  const Divider(),
+                  const SizedBox(height: 12),
+                  Text('旅程專案管理', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+                    onPressed: () => _deleteTrip(trip),
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('刪除旅程'),
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _metric(String label, String value) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [Text(label, style: const TextStyle(color: Colors.black54)), const SizedBox(height: 4), Text(value, style: const TextStyle(fontWeight: FontWeight.w800))],
+      );
+
+  Future<void> _fundAction(TripRow trip, {required bool refund}) async {
+    final members = await widget.controller.services.repository.getMembers(trip.id);
+    if (!mounted || members.isEmpty) return;
+    String memberId = members.first.id;
+    final amount = TextEditingController();
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(refund ? '公基金退款' : '繳入公基金'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                value: memberId,
+                items: [for (final m in members) DropdownMenuItem(value: m.id, child: Text(m.displayName))],
+                onChanged: (value) => setDialogState(() => memberId = value ?? memberId),
+                decoration: const InputDecoration(labelText: '旅伴'),
+              ),
+              const SizedBox(height: 12),
+              TextField(controller: amount, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: '金額 (${trip.baseCurrency})')),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('儲存')),
+          ],
+        ),
+      ),
+    );
+    if (result != true) {
+      amount.dispose();
+      return;
+    }
+    final minor = MoneyInput.parseMajorToMinor(amount.text, trip.baseCurrency);
+    amount.dispose();
+    if (minor == null || minor <= 0) return;
+    try {
+      if (refund) {
+        await widget.controller.services.fund.refund(tripId: trip.id, memberId: memberId, amountMinor: minor);
+      } else {
+        await widget.controller.services.fund.contribute(tripId: trip.id, memberId: memberId, amountMinor: minor);
+      }
+      if (mounted) setState(() => refresh++);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    }
+  }
+
+  Future<void> _deleteTrip(TripRow trip) async {
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('永久刪除旅程？'),
+        content: Text('「${trip.name}」的支出、公基金、照片與結算紀錄都會刪除。建議先匯出備份。'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('永久刪除')),
+        ],
+      ),
+    );
+    if (yes != true) return;
+    await widget.controller.services.trips.deleteTripCompletely(trip.id);
+    await widget.controller.onTripDeleted(trip.id);
+    if (mounted) Navigator.pop(context);
+  }
+}

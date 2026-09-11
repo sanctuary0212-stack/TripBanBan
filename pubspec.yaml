@@ -1,0 +1,58 @@
+name: tripbanban_app
+description: 旅行伴伴 TripBanBan - Android-first, Local-First 旅行分帳 App.
+publish_to: "none"
+version: 0.8.2+82
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  intl: ^0.20.2
+
+  # Local-First persistence
+  drift: ^2.35.0
+  drift_flutter: ^0.3.1
+  path: ^1.9.1
+  path_provider: ^2.1.6
+  uuid: ^4.6.0
+  decimal: ^3.2.6
+
+  # Backup / import / export
+  archive: ^4.2.0
+  file_selector: ^1.1.0
+  cross_file: ^0.3.5
+
+  # Photos and platform sharing
+  image_picker: ^1.2.3
+  share_plus: ^13.3.0
+
+  # FX static JSON fetch
+  http: ^1.6.0
+
+  # Google Drive AppData backup (no TripBanBan backend)
+  google_sign_in: ^7.2.0
+  extension_google_sign_in_as_googleapis_auth: ^3.0.0
+  googleapis: ^17.0.0
+  googleapis_auth: ^2.3.3
+
+  # Best-effort background backup scheduling
+  workmanager: ^0.10.10
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.16.1
+  drift_dev: ^2.35.0
+
+flutter:
+  generate: true
+  uses-material-design: true
+  assets:
+    - assets/branding/
+    - assets/fx/

@@ -1,0 +1,281 @@
+import 'package:flutter/material.dart';
+
+import '../app/app_controller.dart';
+import '../domain/currency_catalog.dart';
+import '../features/backup/backup_service.dart';
+import '../features/backup/google_drive_backup_service.dart';
+import '../localization/app_strings.dart';
+import '../widgets/currency_picker.dart';
+
+class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({super.key, required this.controller});
+  final AppController controller;
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  bool busy = false;
+  GoogleDriveBackupState? driveState;
+  bool autoBackup = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshDriveState();
+    _loadAutoBackup();
+  }
+
+  Future<void> _refreshDriveState() async {
+    try {
+      final state = await widget.controller.services.driveBackup.state();
+      if (mounted) setState(() => driveState = state);
+    } catch (_) {}
+  }
+
+  Future<void> _loadAutoBackup() async {
+    final raw = await widget.controller.services.repository.getSetting('backup.autoDrive');
+    if (mounted) setState(() => autoBackup = raw == 'true');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = AppStrings(widget.controller.languageCode);
+    final currency = CurrencyCatalog.find(widget.controller.defaultCurrency);
+    return Scaffold(
+      appBar: AppBar(title: Text(strings.t('settings'), style: const TextStyle(fontWeight: FontWeight.w800))),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+        children: [
+          _section('一般', [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.language),
+              title: Text(strings.t('language')),
+              subtitle: Text(_languageName(widget.controller.languageCode)),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: _selectLanguage,
+            ),
+            const Divider(height: 1),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.currency_exchange),
+              title: Text(strings.t('defaultCurrency')),
+              subtitle: Text('${widget.controller.defaultCurrency} · ${currency?.name ?? ''}'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () async {
+                final code = await showCurrencyPicker(context, selected: widget.controller.defaultCurrency, title: strings.t('defaultCurrency'));
+                if (code != null) await widget.controller.setDefaultCurrency(code);
+              },
+            ),
+          ]),
+          const SizedBox(height: 12),
+          _section(strings.t('backup'), [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.cloud_outlined),
+              title: Text(strings.t('driveBackup')),
+              subtitle: Text(
+                driveState?.email.isNotEmpty == true
+                    ? '${driveState!.email}\n最後備份：${_dateTime(driveState!.lastBackupAt)}'
+                    : '尚未連結 · 備份存放在使用者自己的 Drive AppData',
+              ),
+              isThreeLine: driveState?.email.isNotEmpty == true,
+            ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(onPressed: busy ? null : _connectDrive, icon: const Icon(Icons.link), label: Text(strings.t('connectGoogle'))),
+                FilledButton.tonalIcon(onPressed: busy || driveState?.email.isEmpty != false ? null : _driveBackupNow, icon: const Icon(Icons.cloud_upload_outlined), label: Text(strings.t('backupNow'))),
+                OutlinedButton.icon(onPressed: busy || driveState?.email.isEmpty != false ? null : _restoreDrive, icon: const Icon(Icons.cloud_download_outlined), label: Text(strings.t('restoreDrive'))),
+              ],
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('每日自動備份'),
+              subtitle: const Text('最佳努力排程；離線時仍以本機資料為準。'),
+              value: autoBackup,
+              onChanged: driveState?.email.isEmpty != false || busy ? null : _toggleAutoBackup,
+            ),
+            const Divider(height: 24),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.archive_outlined),
+              title: Text(strings.t('localBackup')),
+              subtitle: const Text('包含帳本 JSON 快照與本機照片附件'),
+              onTap: busy ? null : _shareLocalBackup,
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.unarchive_outlined),
+              title: Text(strings.t('localRestore')),
+              subtitle: const Text('先顯示備份摘要，確認後才覆蓋本機資料'),
+              onTap: busy ? null : _restoreLocalBackup,
+            ),
+          ]),
+          const SizedBox(height: 12),
+          _section('離線匯率', [
+            const Text('優先順序：手動匯率 → 每日靜態快取 → 最近快取 → App 內建預設值。歷史支出匯率不會被之後更新覆寫。'),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(onPressed: busy ? null : _updateFx, icon: const Icon(Icons.refresh), label: Text(strings.t('fxUpdate'))),
+          ]),
+          const SizedBox(height: 12),
+          _section('關於', [
+            const ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.shield_outlined), title: Text('Local-First'), subtitle: Text('核心帳本儲存在本機 SQLite。TripBanBan 不需要自建雲端後端。')),
+            const ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.phone_android), title: Text('v0.8.2 Android Local-First'), subtitle: Text('目前專注 Android；核心帳務與資料層保持純 Dart/Flutter，不綁定平台。')),
+          ]),
+        ],
+      ),
+    );
+  }
+
+  Widget _section(String title, List<Widget> children) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
+            const SizedBox(height: 8),
+            ...children,
+          ]),
+        ),
+      );
+
+  Future<void> _selectLanguage() async {
+    final options = const <String, String>{
+      'zh_Hant': '繁體中文',
+      'zh_Hans': '简体中文',
+      'en': 'English',
+      'ja': '日本語',
+      'ko': '한국어',
+    };
+    final code = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final entry in options.entries)
+              RadioListTile<String>(
+                value: entry.key,
+                groupValue: widget.controller.languageCode,
+                title: Text(entry.value),
+                onChanged: (value) => Navigator.pop(context, value),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (code != null) await widget.controller.setLanguage(code);
+  }
+
+  Future<void> _connectDrive() => _run(() async {
+        await widget.controller.services.driveBackup.connectInteractive();
+        await _refreshDriveState();
+      });
+
+  Future<void> _driveBackupNow() => _run(() async {
+        final ok = await widget.controller.services.driveBackup.backupNow(allowInteractiveAuthorization: true);
+        if (!ok) throw StateError('Google Drive 尚未授權。');
+        await _refreshDriveState();
+        _toast('Google Drive 備份完成');
+      });
+
+  Future<void> _restoreDrive() => _run(() async {
+        final info = await widget.controller.services.driveBackup.inspectRemoteBackup(allowInteractiveAuthorization: true);
+        if (info == null) throw StateError('Google Drive 中沒有 TripBanBan 備份。');
+        final yes = await _confirmRestore(info, 'Google Drive');
+        if (!yes) return;
+        final ok = await widget.controller.services.driveBackup.restoreRemoteBackup(allowInteractiveAuthorization: true);
+        if (!ok) throw StateError('還原失敗。');
+        await widget.controller.initialize();
+        _toast('還原完成');
+      });
+
+  Future<void> _shareLocalBackup() => _run(() async {
+        await widget.controller.services.backupFacade.createAndShareBackup();
+      });
+
+  Future<void> _restoreLocalBackup() => _run(() async {
+        final file = await widget.controller.services.backupFacade.pickBackupFile();
+        if (file == null) return;
+        final info = await widget.controller.services.localBackup.inspectBackup(file);
+        final yes = await _confirmRestore(info, '本機備份');
+        if (!yes) return;
+        await widget.controller.services.localBackup.restoreAccountBackup(file);
+        await widget.controller.initialize();
+        _toast('還原完成');
+      });
+
+  Future<void> _toggleAutoBackup(bool value) async {
+    setState(() => autoBackup = value);
+    await widget.controller.services.repository.setSetting('backup.autoDrive', value.toString());
+    try {
+      if (value) {
+        await widget.controller.services.background.enableDailyBackup();
+      } else {
+        await widget.controller.services.background.disableDailyBackup();
+      }
+    } catch (e) {
+      _toast('背景排程設定失敗：$e');
+    }
+  }
+
+  Future<void> _updateFx() => _run(() async {
+        final updated = await widget.controller.services.fx.updateDaily(force: true);
+        _toast(updated ? '匯率已更新' : '目前使用最後已知 / 內建匯率');
+      });
+
+  Future<bool> _confirmRestore(BackupInfo info, String source) async {
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('從 $source 還原？'),
+        content: Text(
+          '備份時間：${_dateTime(info.createdAt)}\n'
+          '旅程：${info.tripCount}\n支出：${info.expenseCount}\n照片附件：${info.attachmentCount}\n\n'
+          '還原會覆蓋目前本機資料。',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('覆蓋並還原')),
+        ],
+      ),
+    );
+    return yes == true;
+  }
+
+  Future<void> _run(Future<void> Function() action) async {
+    setState(() => busy = true);
+    try {
+      await action();
+    } catch (e) {
+      if (mounted) showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(title: const Text('操作失敗'), content: Text('$e'), actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('知道了'))]),
+      );
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  void _toast(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  String _dateTime(DateTime? value) {
+    if (value == null) return '尚無';
+    final local = value.toLocal();
+    return '${local.year}/${local.month}/${local.day} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _languageName(String code) => switch (code) {
+        'zh_Hans' => '简体中文',
+        'en' => 'English',
+        'ja' => '日本語',
+        'ko' => '한국어',
+        _ => '繁體中文',
+      };
+}
