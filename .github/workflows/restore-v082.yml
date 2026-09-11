@@ -1,0 +1,40 @@
+name: Restore TripBanBan v0.8.2
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.tripbanban_restore/part_22'
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reconstruct v0.8.2 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .tripbanban_restore/part_* > /tmp/tripbanban_v082.b64
+          base64 -d /tmp/tripbanban_v082.b64 > /tmp/tripbanban_v082.zip
+          mkdir -p /tmp/tripbanban_v082
+          unzip -q /tmp/tripbanban_v082.zip -d /tmp/tripbanban_v082
+
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -a /tmp/tripbanban_v082/. .
+          python3 tool/preflight.py
+
+      - name: Commit restored source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Restore TripBanBan v0.8.2 Android CI source"
+          git push origin HEAD:main
