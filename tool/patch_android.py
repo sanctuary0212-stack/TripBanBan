@@ -1,4 +1,5 @@
 from pathlib import Path
+import base64
 import re
 import shutil
 
@@ -60,8 +61,24 @@ for activity in main_activities:
         raise SystemExit(f'ERROR: Unable to patch package declaration in {activity}.')
     activity.write_text(text)
 
-# Replace Flutter's generated launcher icon with the approved TripBanBan logo.
+# v0.8.4 stores the approved refined logo as small text chunks so the source
+# remains safely writable through repository tooling. Rebuild the PNG before
+# Flutter packages assets and Android compiles launcher resources.
 icon = root / 'assets/branding/tripbanban_icon.png'
+logo_parts_dir = root / 'assets/branding/logo_v084'
+logo_parts = sorted(logo_parts_dir.glob('part_*.b64')) if logo_parts_dir.exists() else []
+if logo_parts:
+    encoded = ''.join(part.read_text().strip() for part in logo_parts)
+    try:
+        decoded = base64.b64decode(encoded, validate=True)
+    except Exception as exc:
+        raise SystemExit(f'ERROR: Invalid v0.8.4 launcher logo payload: {exc}')
+    if not decoded.startswith(b'\x89PNG\r\n\x1a\n'):
+        raise SystemExit('ERROR: Reconstructed launcher icon is not a PNG.')
+    if len(decoded) < 4096:
+        raise SystemExit('ERROR: Reconstructed launcher icon is unexpectedly small.')
+    icon.write_bytes(decoded)
+
 if not icon.exists():
     raise SystemExit('ERROR: assets/branding/tripbanban_icon.png is missing.')
 
@@ -89,4 +106,4 @@ for launcher in launchers:
     if launcher.read_bytes() != icon.read_bytes():
         raise SystemExit(f'ERROR: Launcher icon mismatch in {launcher}.')
 
-print(f'Android patch OK: com.tripbanban.app/MainActivity; launcher icons={len(launchers)}')
+print(f'Android patch OK: com.tripbanban.app/MainActivity; launcher icons={len(launchers)}; logo bytes={icon.stat().st_size}')
