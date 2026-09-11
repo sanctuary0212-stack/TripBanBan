@@ -1,0 +1,22 @@
+{
+  "name": "@tripbanban/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "typecheck": "tsc --noEmit",
+    "doctor": "npx expo-doctor@latest"
+  },
+  "dependencies": {
+    "@tripbanban/domain": "0.1.0",
+    "expo": "57.0.17",
+    "react": "19.2.0",
+    "react-native": "0.86.3"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.2",
+    "typescript": "^5.9.2"
+  }
+}

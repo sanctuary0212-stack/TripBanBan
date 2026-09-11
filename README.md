@@ -1,40 +1,86 @@
 # TripBanBan
 
-TripBanBan 專案主倉庫。
+TripBanBan 是 Web + Mobile 共用 domain model 的旅遊行程 MVP。
 
-目前先建立 **technology-agnostic monorepo skeleton**，把產品、前端、後端、共用模組、文件與測試的邊界先整理好；在正式決定 Web / Mobile / Backend 技術棧前，不先鎖死框架。
+## Current stack
+
+- Node.js 24 LTS
+- npm workspaces
+- Web: Next.js 16.3.3 + React 19.2 + TypeScript
+- Mobile: Expo SDK 57 + React Native 0.86.3
+- Shared domain: `@tripbanban/domain`
 
 ## Repository structure
 
 ```text
 TripBanBan/
-├─ apps/              # 使用者端應用（Web / Mobile 等）
-├─ services/          # Backend API、worker、integration services
-├─ packages/          # 跨應用共用模組、型別、domain logic
-├─ docs/              # 架構、產品與開發文件
-├─ scripts/           # 開發、建置、部署輔助腳本
-├─ tests/             # 跨模組 / integration / e2e tests
-├─ .editorconfig
-├─ .gitignore
-└─ README.md
+├─ apps/
+│  ├─ web/            # Next.js Web MVP
+│  └─ mobile/         # Expo / React Native Android client
+├─ services/          # Future standalone backend / workers
+├─ packages/
+│  └─ domain/         # Trip / Day / Stop shared model
+├─ docs/              # Architecture and MVP scope
+├─ scripts/
+├─ tests/
+└─ .github/workflows/
 ```
 
-## Initial principles
+## Run Web
 
-1. **先分離 domain 與 UI**：核心旅程/行程資料模型不要綁定單一前端框架。
-2. **API contract 明確化**：前後端透過穩定 contract 溝通，方便未來 Web / Mobile 共用。
-3. **共用邏輯集中**：共用型別、validation、utilities 放在 `packages/`。
-4. **文件跟著程式走**：重要架構決策放在 `docs/`，避免只存在聊天紀錄。
-5. **避免過早鎖定技術棧**：等 MVP 功能與部署需求確認後，再加入 framework-specific scaffold。
+```bash
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+Available endpoints:
+
+- `GET /api/health`
+- `GET /api/trips`
+
+## Run Mobile
+
+```bash
+npm install
+npm run mobile
+```
+
+The mobile app renders the same demo itinerary from `@tripbanban/domain` as the Web app.
+
+## Build an Android test APK
+
+The repository includes `.github/workflows/android-apk.yml`.
+
+On pull requests that change mobile code, GitHub automatically builds a debug APK. You can also run it manually from **Actions → Android APK → Run workflow**.
+
+After the workflow succeeds:
+
+1. Open the workflow run.
+2. Download the `tripbanban-android-debug` artifact.
+3. Extract it.
+4. Install `app-debug.apk` on the Android phone.
+
+This debug APK path does not require an Expo account or EAS token. The mobile app also includes an EAS `preview` profile for future cloud-distributed APK builds.
+
+## Initial architecture principles
+
+1. **Domain 與 UI 分離**：核心 Trip / Day / Stop model 不綁特定前端。
+2. **API contract 明確化**：Web / Mobile 未來透過穩定 contract 存取後端。
+3. **共用邏輯集中**：共用型別與 domain logic 放在 `packages/`。
+4. **文件跟程式走**：產品與架構決策保存在 `docs/`。
+5. **先 MVP、再拆服務**：目前以 Web route handlers 快速驗證，需求成熟後再拆 standalone services。
 
 ## Next milestones
 
-- 定義 MVP 使用情境與核心功能
-- 決定 Web / Mobile 優先順序
-- 決定 frontend / backend 技術棧
-- 建立 domain model 與 API contract
-- 加入 CI、lint、test、deployment pipeline
+- Trip CRUD
+- Persistence / database
+- Read-only sharing URL
+- Mobile navigation
+- Map / location support
+- Authentication
 
 ## Status
 
-Project scaffold initialized.
+Web + Android MVP foundation in progress.
