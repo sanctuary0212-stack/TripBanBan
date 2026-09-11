@@ -43,7 +43,7 @@ jobs:
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: TripBanBan-v0.8.2-debug-apk
+          name: TripBanBan-v0.8.3-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
           retention-days: 14
@@ -52,7 +52,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: TripBanBan-v0.8.2-build-diagnostics
+          name: TripBanBan-v0.8.3-build-diagnostics
           path: |
             build/**/test-results/**
             build/**/reports/**

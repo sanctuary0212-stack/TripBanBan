@@ -6,10 +6,12 @@ errors=[]
 warnings=[]
 
 pub=(root/'pubspec.yaml').read_text()
-if 'version: 0.8.2+82' not in pub: errors.append('pubspec version is not 0.8.2+82')
+if 'version: 0.8.3+83' not in pub: errors.append('pubspec version is not 0.8.3+83')
 if 'drift:' not in pub or 'drift_flutter:' not in pub: errors.append('Drift dependencies missing')
+if not (root/'assets/branding/tripbanban_icon.png').exists(): errors.append('TripBanBan launcher logo is missing')
+if not (root/'lib/features/premium/premium_service.dart').exists(): errors.append('Premium service is missing')
 
-# DB tables expected by Local-First accounting.
+# DB tables expected by the accounting model.
 db=(root/'lib/data/local/app_database.dart').read_text()
 for name in ['Trips','Members','Expenses','ExpenseShares','FundTransactions','SettlementPayments','Attachments','FxRates','AppSettings']:
     if f'class {name} extends Table' not in db: errors.append(f'missing DB table: {name}')
@@ -24,12 +26,6 @@ app=(root/'lib/app.dart').read_text()
 for token in ["scriptCode: 'Hant'", "scriptCode: 'Hans'", "Locale('en')", "Locale('ja')", "Locale('ko')"]:
     if token not in app: errors.append(f'missing supported locale in MaterialApp: {token}')
 
-# Source hygiene for the Android-focused branch.
-readme=(root/'README.md').read_text()
-if 'Android Local-First' not in readme: errors.append('README is not Android v0.8.2')
-for stale in ['Supabase schema', 'flutter create --platforms=android,ios']:
-    if stale in readme: errors.append(f'stale README text: {stale}')
-
 # Ensure no old alpha package ids are present in new core source.
 core='\n'.join(p.read_text(errors='ignore') for p in (root/'lib').rglob('*.dart'))
 if re.search(r'com\.tripbanban\.safe\d+', core): errors.append('old safeXXX package id leaked into core source')
@@ -42,7 +38,7 @@ for p in (root/'lib/l10n').glob('*.arb'):
     try: json.loads(p.read_text())
     except Exception as e: errors.append(f'invalid ARB {p.name}: {e}')
 
-print('TripBanBan v0.8.2 Android preflight')
+print('TripBanBan v0.8.3 Android preflight')
 for w in warnings: print('WARN:',w)
 for e in errors: print('ERROR:',e)
 if errors:

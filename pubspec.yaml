@@ -1,7 +1,7 @@
 name: tripbanban_app
-description: 旅行伴伴 TripBanBan - Android-first, Local-First 旅行分帳 App.
+description: 旅行伴伴 TripBanBan - Android-first 旅行分帳 App.
 publish_to: "none"
-version: 0.8.2+82
+version: 0.8.3+83
 
 environment:
   sdk: ">=3.12.0 <4.0.0"
@@ -14,7 +14,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   intl: ^0.20.2
 
-  # Local-First persistence
+  # Local persistence
   drift: ^2.35.0
   drift_flutter: ^0.3.1
   path: ^1.9.1
@@ -34,7 +34,7 @@ dependencies:
   # FX static JSON fetch
   http: ^1.6.0
 
-  # Google Drive AppData backup (no TripBanBan backend)
+  # Google Drive AppData backup
   google_sign_in: ^7.2.0
   extension_google_sign_in_as_googleapis_auth: ^3.0.0
   googleapis: ^17.0.0

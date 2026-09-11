@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app/app_controller.dart';
 import '../data/local/app_database.dart';
+import '../features/premium/premium_service.dart';
 
 class ManageMembersScreen extends StatefulWidget {
   const ManageMembersScreen({super.key, required this.controller, required this.tripId});
@@ -21,6 +22,7 @@ class _ManageMembersScreenState extends State<ManageMembersScreen> {
         stream: widget.controller.services.repository.watchMembers(widget.tripId),
         builder: (context, snapshot) {
           final members = snapshot.data ?? const <MemberRow>[];
+          final premium = widget.controller.services.premium.isPremium;
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -40,7 +42,19 @@ class _ManageMembersScreenState extends State<ManageMembersScreen> {
                   ),
                 ),
               const SizedBox(height: 10),
-              FilledButton.icon(onPressed: _add, icon: const Icon(Icons.person_add), label: const Text('新增旅伴')),
+              FilledButton.icon(
+                onPressed: () => _add(members),
+                icon: const Icon(Icons.person_add),
+                label: Text(!premium && members.length >= 3 ? '升級 Plus 以新增更多旅伴' : '新增旅伴'),
+              ),
+              if (!premium && members.length >= 3) ...[
+                const SizedBox(height: 10),
+                Text(
+                  '免費版最多 3 人；${PremiumService.productLabel} ${PremiumService.priceLabel} 可使用 3 人以上。',
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ],
           );
         },
@@ -49,26 +63,50 @@ class _ManageMembersScreenState extends State<ManageMembersScreen> {
   }
 
   Future<String?> _askName(String title, {String initial = ''}) async {
-    final controller = TextEditingController(text: initial);
-    final result = await showDialog<String>(
+    var text = initial;
+    return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(title),
-        content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(labelText: '名稱')),
+        content: TextFormField(
+          initialValue: initial,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: '名稱'),
+          onChanged: (value) => text = value,
+          onFieldSubmitted: (_) => Navigator.pop(context, text.trim()),
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
-          FilledButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('儲存')),
+          FilledButton(onPressed: () => Navigator.pop(context, text.trim()), child: const Text('儲存')),
         ],
       ),
     );
-    controller.dispose();
-    return result;
   }
 
-  Future<void> _add() async {
+  Future<void> _add(List<MemberRow> members) async {
+    if (members.length >= 3 && !widget.controller.services.premium.isPremium) {
+      await _showPremiumRequired();
+      return;
+    }
     final name = await _askName('新增旅伴');
     if (name == null || name.isEmpty) return;
     await widget.controller.services.repository.addMember(widget.tripId, name);
+  }
+
+  Future<void> _showPremiumRequired() async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.workspace_premium_rounded, size: 36),
+        title: const Text('需要 TripBanBan Plus'),
+        content: const Text(
+          '免費版最多 3 人。Plus 為 US\$1.99 一次買斷，可使用更多旅伴，並解鎖 Google Drive 備份與還原。',
+        ),
+        actions: [
+          FilledButton(onPressed: () => Navigator.pop(context), child: const Text('知道了')),
+        ],
+      ),
+    );
   }
 
   Future<void> _rename(MemberRow member) async {

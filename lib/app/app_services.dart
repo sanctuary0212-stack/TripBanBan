@@ -10,6 +10,7 @@ import '../features/expenses/expense_application_service.dart';
 import '../features/expenses/fund_application_service.dart';
 import '../features/expenses/trip_application_service.dart';
 import '../features/fx/fx_rate_service.dart';
+import '../features/premium/premium_service.dart';
 import '../features/share/csv_export_service.dart';
 import '../features/share/platform_share_service.dart';
 import '../features/share/report_factory.dart';
@@ -31,6 +32,7 @@ class AppServices {
     required this.driveBackup,
     required this.backupFacade,
     required this.background,
+    required this.premium,
     required this.reportFactory,
     required this.settlementImage,
     required this.csv,
@@ -69,6 +71,7 @@ class AppServices {
       ),
       backupFacade: LocalBackupFacade(backups: localBackup, share: share),
       background: const BackgroundScheduler(),
+      premium: PremiumService(repository),
       reportFactory: ReportFactory(repository: repository, ledger: ledger),
       settlementImage: SettlementImageService(),
       csv: CsvExportService(repository),
@@ -89,6 +92,7 @@ class AppServices {
   final GoogleDriveBackupService driveBackup;
   final LocalBackupFacade backupFacade;
   final BackgroundScheduler background;
+  final PremiumService premium;
   final ReportFactory reportFactory;
   final SettlementImageService settlementImage;
   final CsvExportService csv;

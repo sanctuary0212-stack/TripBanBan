@@ -59,7 +59,11 @@ class _AppShellState extends State<AppShell> {
         destinations: [
           NavigationDestination(icon: const Icon(Icons.luggage_outlined), selectedIcon: const Icon(Icons.luggage), label: strings.t('trips')),
           NavigationDestination(icon: const Icon(Icons.receipt_long_outlined), selectedIcon: const Icon(Icons.receipt_long), label: strings.t('records')),
-          NavigationDestination(icon: const Icon(Icons.add_circle_outline), selectedIcon: const Icon(Icons.add_circle), label: strings.t('add')),
+          NavigationDestination(
+            icon: const Icon(Icons.add_circle_outline, size: 32),
+            selectedIcon: const Icon(Icons.add_circle, size: 34),
+            label: strings.t('add'),
+          ),
           NavigationDestination(icon: const Icon(Icons.sync_alt_outlined), selectedIcon: const Icon(Icons.sync_alt), label: strings.t('settlement')),
           NavigationDestination(icon: const Icon(Icons.settings_outlined), selectedIcon: const Icon(Icons.settings), label: strings.t('settings')),
         ],

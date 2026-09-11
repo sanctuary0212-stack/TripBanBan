@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../app/app_controller.dart';
 import '../data/local/app_database.dart';
 import '../domain/ledger_models.dart';
+import '../domain/money_input.dart';
 import '../domain/money_text.dart';
 import '../localization/app_strings.dart';
 
@@ -102,18 +103,32 @@ class _SettlementScreenState extends State<SettlementScreen> {
                     ),
                 ],
               ),
-              if (ledger.fundBalanceMinor != 0) ...[
+              if (ledger.fundBalanceMinor > 0) ...[
                 const SizedBox(height: 12),
                 Card(
                   color: const Color(0xFFFFF5E6),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
-                    child: Row(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.info_outline),
-                        const SizedBox(width: 10),
-                        Expanded(child: Text(strings.t('fundNeedsRefund'))),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.info_outline),
+                            const SizedBox(width: 10),
+                            Expanded(child: Text(strings.t('fundNeedsRefund'))),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () => _refundFund(data),
+                            icon: const Icon(Icons.undo_rounded),
+                            label: Text('公基金退款 · ${MoneyText.formatMinor(ledger.fundBalanceMinor, ledger.currency)}'),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -177,6 +192,62 @@ class _SettlementScreenState extends State<SettlementScreen> {
       currency: data.trip.baseCurrency,
     );
     if (mounted) setState(() => refresh++);
+  }
+
+  Future<void> _refundFund(_SettlementViewData data) async {
+    if (data.members.isEmpty || data.ledger.fundBalanceMinor <= 0) return;
+    var memberId = data.members.first.id;
+    var amountText = '';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('公基金退款'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('目前餘額：${MoneyText.formatMinor(data.ledger.fundBalanceMinor, data.ledger.currency)}'),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: memberId,
+                items: [for (final member in data.members) DropdownMenuItem(value: member.id, child: Text(member.displayName))],
+                onChanged: (value) => setDialogState(() => memberId = value ?? memberId),
+                decoration: const InputDecoration(labelText: '退款給'),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                autofocus: true,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(labelText: '退款金額 (${data.ledger.currency})'),
+                onChanged: (value) => amountText = value,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('取消')),
+            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('退款')),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true) return;
+
+    final amountMinor = MoneyInput.parseMajorToMinor(amountText, data.ledger.currency);
+    if (amountMinor == null || amountMinor <= 0) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('請輸入有效退款金額')));
+      return;
+    }
+    try {
+      await widget.controller.services.fund.refund(
+        tripId: data.trip.id,
+        memberId: memberId,
+        amountMinor: amountMinor,
+        note: '結算頁公基金退款',
+      );
+      if (mounted) setState(() => refresh++);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    }
   }
 
   Future<void> _shareImage(_SettlementViewData data) async {

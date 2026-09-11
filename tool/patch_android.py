@@ -1,5 +1,6 @@
 from pathlib import Path
 import re
+import shutil
 
 root = Path(__file__).resolve().parents[1]
 build = root / 'android/app/build.gradle.kts'
@@ -59,6 +60,18 @@ for activity in main_activities:
         raise SystemExit(f'ERROR: Unable to patch package declaration in {activity}.')
     activity.write_text(text)
 
+# Replace Flutter's generated launcher icon with the approved TripBanBan logo.
+icon = root / 'assets/branding/tripbanban_icon.png'
+if not icon.exists():
+    raise SystemExit('ERROR: assets/branding/tripbanban_icon.png is missing.')
+
+res_root = root / 'android/app/src/main/res'
+launchers = sorted(res_root.glob('mipmap-*/ic_launcher.png')) if res_root.exists() else []
+if not launchers:
+    raise SystemExit('ERROR: Android launcher icon targets were not generated.')
+for launcher in launchers:
+    shutil.copyfile(icon, launcher)
+
 # Fail CI early if the generated Android identity is inconsistent.
 if build.exists():
     build_text = build.read_text()
@@ -72,4 +85,8 @@ for activity in main_activities:
     if expected not in activity.read_text():
         raise SystemExit(f'ERROR: MainActivity package mismatch in {activity}.')
 
-print('Android patch OK: com.tripbanban.app/MainActivity')
+for launcher in launchers:
+    if launcher.read_bytes() != icon.read_bytes():
+        raise SystemExit(f'ERROR: Launcher icon mismatch in {launcher}.')
+
+print(f'Android patch OK: com.tripbanban.app/MainActivity; launcher icons={len(launchers)}')

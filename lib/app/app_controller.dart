@@ -44,6 +44,7 @@ class AppController extends ChangeNotifier {
       if (trips.isNotEmpty) _selectedTripId = trips.first.id;
     }
 
+    await services.premium.initialize();
     await services.fx.ensureBootstrapRates();
     _initialized = true;
     notifyListeners();

@@ -4,6 +4,7 @@ import '../app/app_controller.dart';
 import '../domain/currency_catalog.dart';
 import '../features/backup/backup_service.dart';
 import '../features/backup/google_drive_backup_service.dart';
+import '../features/premium/premium_service.dart';
 import '../localization/app_strings.dart';
 import '../widgets/currency_picker.dart';
 
@@ -23,7 +24,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _refreshDriveState();
+    if (widget.controller.services.premium.isPremium) _refreshDriveState();
     _loadAutoBackup();
   }
 
@@ -43,6 +44,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final strings = AppStrings(widget.controller.languageCode);
     final currency = CurrencyCatalog.find(widget.controller.defaultCurrency);
+    final premium = widget.controller.services.premium;
     return Scaffold(
       appBar: AppBar(title: Text(strings.t('settings'), style: const TextStyle(fontWeight: FontWeight.w800))),
       body: ListView(
@@ -71,35 +73,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ]),
           const SizedBox(height: 12),
-          _section(strings.t('backup'), [
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.cloud_outlined),
-              title: Text(strings.t('driveBackup')),
-              subtitle: Text(
-                driveState?.email.isNotEmpty == true
-                    ? '${driveState!.email}\n最後備份：${_dateTime(driveState!.lastBackupAt)}'
-                    : '尚未連結 · 備份存放在使用者自己的 Drive AppData',
-              ),
-              isThreeLine: driveState?.email.isNotEmpty == true,
-            ),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                OutlinedButton.icon(onPressed: busy ? null : _connectDrive, icon: const Icon(Icons.link), label: Text(strings.t('connectGoogle'))),
-                FilledButton.tonalIcon(onPressed: busy || driveState?.email.isEmpty != false ? null : _driveBackupNow, icon: const Icon(Icons.cloud_upload_outlined), label: Text(strings.t('backupNow'))),
-                OutlinedButton.icon(onPressed: busy || driveState?.email.isEmpty != false ? null : _restoreDrive, icon: const Icon(Icons.cloud_download_outlined), label: Text(strings.t('restoreDrive'))),
-              ],
-            ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('每日自動備份'),
-              subtitle: const Text('最佳努力排程；離線時仍以本機資料為準。'),
-              value: autoBackup,
-              onChanged: driveState?.email.isEmpty != false || busy ? null : _toggleAutoBackup,
-            ),
-            const Divider(height: 24),
+          _premiumSection(premium),
+          const SizedBox(height: 12),
+          _section('Google Drive', premium.isPremium ? _premiumDriveChildren(strings) : _lockedDriveChildren()),
+          const SizedBox(height: 12),
+          _section('本機匯入 / 匯出', [
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.archive_outlined),
@@ -116,20 +94,104 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ]),
           const SizedBox(height: 12),
-          _section('離線匯率', [
-            const Text('優先順序：手動匯率 → 每日靜態快取 → 最近快取 → App 內建預設值。歷史支出匯率不會被之後更新覆寫。'),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(onPressed: busy ? null : _updateFx, icon: const Icon(Icons.refresh), label: Text(strings.t('fxUpdate'))),
-          ]),
-          const SizedBox(height: 12),
           _section('關於', [
-            const ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.shield_outlined), title: Text('Local-First'), subtitle: Text('核心帳本儲存在本機 SQLite。TripBanBan 不需要自建雲端後端。')),
-            const ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.phone_android), title: Text('v0.8.2 Android Local-First'), subtitle: Text('目前專注 Android；核心帳務與資料層保持純 Dart/Flutter，不綁定平台。')),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 10),
+              child: Center(child: Text('v0.8.3', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18))),
+            ),
           ]),
         ],
       ),
     );
   }
+
+  Widget _premiumSection(PremiumService premium) => Card(
+        clipBehavior: Clip.antiAlias,
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(colors: [Color(0xFFE8FFF8), Color(0xFFF9FFF3)]),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.workspace_premium_rounded, color: Color(0xFF00796B)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      premium.isPremium ? 'TripBanBan Plus 已啟用' : '${PremiumService.productLabel} · ${PremiumService.priceLabel}',
+                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Text('一次買斷 · 解鎖更多旅伴與雲端功能'),
+              const SizedBox(height: 10),
+              const _FeatureLine(icon: Icons.group_add_outlined, text: '旅伴可超過 3 人'),
+              const _FeatureLine(icon: Icons.cloud_outlined, text: 'Google Drive 備份與還原'),
+              const _FeatureLine(icon: Icons.import_export_rounded, text: 'Google Drive 匯入 / 匯出流程'),
+              if (premium.canUseDebugToggle) ...[
+                const Divider(height: 26),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('測試付費版功能'),
+                  subtitle: const Text('僅 Debug APK 顯示，方便目前測試；正式版不會有此開關。'),
+                  value: premium.isPremium,
+                  onChanged: busy ? null : _toggleDebugPremium,
+                ),
+              ] else if (!premium.isPremium) ...[
+                const SizedBox(height: 12),
+                const SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(onPressed: null, child: Text('Google Play 商品建立後開放購買')),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+
+  List<Widget> _lockedDriveChildren() => const [
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(Icons.lock_outline),
+          title: Text('Google Drive 為 Plus 功能'),
+          subtitle: Text('升級 US\$1.99 Plus 後，可將備份存放在自己的 Google Drive，並從雲端還原。'),
+        ),
+      ];
+
+  List<Widget> _premiumDriveChildren(AppStrings strings) => [
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.cloud_outlined),
+          title: Text(strings.t('driveBackup')),
+          subtitle: Text(
+            driveState?.email.isNotEmpty == true
+                ? '${driveState!.email}\n最後備份：${_dateTime(driveState!.lastBackupAt)}'
+                : '尚未連結 · 備份存放在使用者自己的 Drive AppData',
+          ),
+          isThreeLine: driveState?.email.isNotEmpty == true,
+        ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            OutlinedButton.icon(onPressed: busy ? null : _connectDrive, icon: const Icon(Icons.link), label: Text(strings.t('connectGoogle'))),
+            FilledButton.tonalIcon(onPressed: busy || driveState?.email.isEmpty != false ? null : _driveBackupNow, icon: const Icon(Icons.cloud_upload_outlined), label: Text(strings.t('backupNow'))),
+            OutlinedButton.icon(onPressed: busy || driveState?.email.isEmpty != false ? null : _restoreDrive, icon: const Icon(Icons.cloud_download_outlined), label: Text(strings.t('restoreDrive'))),
+          ],
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('每日自動備份'),
+          subtitle: const Text('最佳努力排程；離線時仍以本機資料為準。'),
+          value: autoBackup,
+          onChanged: driveState?.email.isEmpty != false || busy ? null : _toggleAutoBackup,
+        ),
+      ];
 
   Widget _section(String title, List<Widget> children) => Card(
         child: Padding(
@@ -141,6 +203,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ]),
         ),
       );
+
+  Future<void> _toggleDebugPremium(bool value) async {
+    setState(() => busy = true);
+    try {
+      await widget.controller.services.premium.setDebugPremium(value);
+      if (value) {
+        await _refreshDriveState();
+      } else {
+        autoBackup = false;
+        driveState = null;
+        await widget.controller.services.repository.setSetting('backup.autoDrive', 'false');
+        try {
+          await widget.controller.services.background.disableDailyBackup();
+        } catch (_) {}
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
 
   Future<void> _selectLanguage() async {
     final options = const <String, String>{
@@ -171,11 +252,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _connectDrive() => _run(() async {
+        _requirePremium();
         await widget.controller.services.driveBackup.connectInteractive();
         await _refreshDriveState();
       });
 
   Future<void> _driveBackupNow() => _run(() async {
+        _requirePremium();
         final ok = await widget.controller.services.driveBackup.backupNow(allowInteractiveAuthorization: true);
         if (!ok) throw StateError('Google Drive 尚未授權。');
         await _refreshDriveState();
@@ -183,6 +266,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       });
 
   Future<void> _restoreDrive() => _run(() async {
+        _requirePremium();
         final info = await widget.controller.services.driveBackup.inspectRemoteBackup(allowInteractiveAuthorization: true);
         if (info == null) throw StateError('Google Drive 中沒有 TripBanBan 備份。');
         final yes = await _confirmRestore(info, 'Google Drive');
@@ -192,6 +276,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         await widget.controller.initialize();
         _toast('還原完成');
       });
+
+  void _requirePremium() {
+    if (!widget.controller.services.premium.isPremium) {
+      throw StateError('此功能需要 TripBanBan Plus。');
+    }
+  }
 
   Future<void> _shareLocalBackup() => _run(() async {
         await widget.controller.services.backupFacade.createAndShareBackup();
@@ -209,6 +299,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       });
 
   Future<void> _toggleAutoBackup(bool value) async {
+    _requirePremium();
     setState(() => autoBackup = value);
     await widget.controller.services.repository.setSetting('backup.autoDrive', value.toString());
     try {
@@ -221,11 +312,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _toast('背景排程設定失敗：$e');
     }
   }
-
-  Future<void> _updateFx() => _run(() async {
-        final updated = await widget.controller.services.fx.updateDaily(force: true);
-        _toast(updated ? '匯率已更新' : '目前使用最後已知 / 內建匯率');
-      });
 
   Future<bool> _confirmRestore(BackupInfo info, String source) async {
     final yes = await showDialog<bool>(
@@ -251,10 +337,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       await action();
     } catch (e) {
-      if (mounted) showDialog<void>(
-        context: context,
-        builder: (context) => AlertDialog(title: const Text('操作失敗'), content: Text('$e'), actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('知道了'))]),
-      );
+      if (mounted) {
+        showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('操作失敗'),
+            content: Text('$e'),
+            actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('知道了'))],
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => busy = false);
     }
@@ -278,4 +370,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'ko' => '한국어',
         _ => '繁體中文',
       };
+}
+
+class _FeatureLine extends StatelessWidget {
+  const _FeatureLine({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Icon(icon, size: 19, color: const Color(0xFF00796B)),
+            const SizedBox(width: 9),
+            Expanded(child: Text(text)),
+          ],
+        ),
+      );
 }

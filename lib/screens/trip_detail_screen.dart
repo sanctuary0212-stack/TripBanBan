@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../app/app_controller.dart';
@@ -37,29 +39,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
               return ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
                 children: [
-                  // Deliberately text-only: individual trip detail should not show destination imagery.
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(trip.name, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
-                          const SizedBox(height: 8),
-                          Text('${trip.destination ?? '旅行專案'} · ${trip.baseCurrency}'),
-                          if (ledger != null) ...[
-                            const SizedBox(height: 18),
-                            Row(
-                              children: [
-                                Expanded(child: _metric('總支出', MoneyText.formatMinor(ledger.totalExpenseMinor, trip.baseCurrency))),
-                                Expanded(child: _metric('公基金餘額', MoneyText.formatMinor(ledger.fundBalanceMinor, trip.baseCurrency))),
-                              ],
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
+                  _TravelHeroCard(trip: trip, ledger: ledger),
                   const SizedBox(height: 12),
                   StreamBuilder<List<MemberRow>>(
                     stream: widget.controller.services.repository.watchMembers(trip.id),
@@ -106,13 +86,28 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                           const Text('公基金', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
                           const SizedBox(height: 12),
                           if (ledger != null)
-                            Text(MoneyText.formatMinor(ledger.fundBalanceMinor, trip.baseCurrency), style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
+                            Text(
+                              MoneyText.formatMinor(ledger.fundBalanceMinor, trip.baseCurrency),
+                              style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
+                            ),
                           const SizedBox(height: 14),
                           Row(
                             children: [
-                              Expanded(child: OutlinedButton.icon(onPressed: () => _fundAction(trip, refund: false), icon: const Icon(Icons.add), label: const Text('繳入 / 補充'))),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () => _fundAction(trip, refund: false),
+                                  icon: const Icon(Icons.add),
+                                  label: const Text('繳入 / 補充'),
+                                ),
+                              ),
                               const SizedBox(width: 10),
-                              Expanded(child: OutlinedButton.icon(onPressed: () => _fundAction(trip, refund: true), icon: const Icon(Icons.undo), label: const Text('退款'))),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () => _fundAction(trip, refund: true),
+                                  icon: const Icon(Icons.undo),
+                                  label: const Text('退款'),
+                                ),
+                              ),
                             ],
                           ),
                         ],
@@ -122,7 +117,10 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                   const SizedBox(height: 16),
                   FilledButton.icon(
                     onPressed: () async {
-                      await Navigator.push(context, MaterialPageRoute(builder: (_) => AddExpenseScreen(controller: widget.controller, initialTripId: trip.id)));
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => AddExpenseScreen(controller: widget.controller, initialTripId: trip.id)),
+                      );
                       if (mounted) setState(() => refresh++);
                     },
                     icon: const Icon(Icons.add),
@@ -148,48 +146,50 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
     );
   }
 
-  Widget _metric(String label, String value) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [Text(label, style: const TextStyle(color: Colors.black54)), const SizedBox(height: 4), Text(value, style: const TextStyle(fontWeight: FontWeight.w800))],
-      );
-
   Future<void> _fundAction(TripRow trip, {required bool refund}) async {
     final members = await widget.controller.services.repository.getMembers(trip.id);
     if (!mounted || members.isEmpty) return;
-    String memberId = members.first.id;
-    final amount = TextEditingController();
+
+    var memberId = members.first.id;
+    var amountText = '';
     final result = await showDialog<bool>(
       context: context,
-      builder: (context) => StatefulBuilder(
+      builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text(refund ? '公基金退款' : '繳入公基金'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
-                value: memberId,
+                initialValue: memberId,
                 items: [for (final m in members) DropdownMenuItem(value: m.id, child: Text(m.displayName))],
                 onChanged: (value) => setDialogState(() => memberId = value ?? memberId),
                 decoration: const InputDecoration(labelText: '旅伴'),
               ),
               const SizedBox(height: 12),
-              TextField(controller: amount, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: '金額 (${trip.baseCurrency})')),
+              TextFormField(
+                autofocus: true,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(labelText: '金額 (${trip.baseCurrency})'),
+                onChanged: (value) => amountText = value,
+              ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('儲存')),
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('取消')),
+            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('儲存')),
           ],
         ),
       ),
     );
-    if (result != true) {
-      amount.dispose();
+    if (result != true) return;
+
+    final minor = MoneyInput.parseMajorToMinor(amountText, trip.baseCurrency);
+    if (minor == null || minor <= 0) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('請輸入有效金額')));
       return;
     }
-    final minor = MoneyInput.parseMajorToMinor(amount.text, trip.baseCurrency);
-    amount.dispose();
-    if (minor == null || minor <= 0) return;
+
     try {
       if (refund) {
         await widget.controller.services.fund.refund(tripId: trip.id, memberId: memberId, amountMinor: minor);
@@ -219,4 +219,97 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
     await widget.controller.onTripDeleted(trip.id);
     if (mounted) Navigator.pop(context);
   }
+}
+
+class _TravelHeroCard extends StatelessWidget {
+  const _TravelHeroCard({required this.trip, required this.ledger});
+  final TripRow trip;
+  final LedgerSnapshot? ledger;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      elevation: 0,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 210),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF087F73), Color(0xFF24B8B1), Color(0xFF78D9CF)],
+          ),
+        ),
+        child: Stack(
+          children: [
+            Positioned(right: -34, top: -42, child: _bubble(150, const Color(0x33FFF3B0))),
+            Positioned(left: -44, bottom: -58, child: _bubble(190, const Color(0x22005262))),
+            Positioned(right: 18, bottom: 10, child: _bubble(86, const Color(0x22FFFFFF))),
+            Positioned(
+              right: 30,
+              top: 22,
+              child: Transform.rotate(
+                angle: -math.pi / 9,
+                child: const Icon(Icons.flight_rounded, size: 78, color: Color(0x55FFFFFF)),
+              ),
+            ),
+            const Positioned(right: 22, bottom: 24, child: Icon(Icons.location_on_rounded, size: 64, color: Color(0x44FFFFFF))),
+            const Positioned(right: 106, bottom: 34, child: Icon(Icons.luggage_rounded, size: 42, color: Color(0x33FFFFFF))),
+            Padding(
+              padding: const EdgeInsets.all(22),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    trip.name,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 7),
+                  Row(
+                    children: [
+                      const Icon(Icons.place_outlined, color: Colors.white70, size: 18),
+                      const SizedBox(width: 5),
+                      Text(
+                        '${trip.destination ?? '旅行專案'} · ${trip.baseCurrency}',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                  if (ledger != null) ...[
+                    const SizedBox(height: 28),
+                    Row(
+                      children: [
+                        Expanded(child: _metric('總支出', MoneyText.formatMinor(ledger!.totalExpenseMinor, trip.baseCurrency))),
+                        const SizedBox(width: 12),
+                        Expanded(child: _metric('公基金餘額', MoneyText.formatMinor(ledger!.fundBalanceMinor, trip.baseCurrency))),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static Widget _bubble(double size, Color color) => Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+      );
+
+  static Widget _metric(String label, String value) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(color: const Color(0x22FFFFFF), borderRadius: BorderRadius.circular(14)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+            const SizedBox(height: 3),
+            Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
+          ],
+        ),
+      );
 }

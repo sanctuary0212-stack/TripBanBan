@@ -17,18 +17,7 @@ class TripProjectsScreen extends StatelessWidget {
     final strings = AppStrings(controller.languageCode);
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(strings.t('myTrips'), style: const TextStyle(fontWeight: FontWeight.w800)),
-            const Text('TripBanBan · Local-First', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w400)),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CreateTripScreen(controller: controller))),
-        icon: const Icon(Icons.add),
-        label: Text(strings.t('newTrip')),
+        title: Text(strings.t('appName'), style: const TextStyle(fontWeight: FontWeight.w900)),
       ),
       body: StreamBuilder<List<TripRow>>(
         stream: controller.services.repository.watchTrips(),
@@ -47,7 +36,7 @@ class TripProjectsScreen extends StatelessWidget {
                     const SizedBox(height: 18),
                     FilledButton.icon(
                       onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CreateTripScreen(controller: controller))),
-                      icon: const Icon(Icons.add),
+                      icon: const Icon(Icons.add, size: 25),
                       label: Text(strings.t('newTrip')),
                     ),
                   ],
@@ -56,7 +45,7 @@ class TripProjectsScreen extends StatelessWidget {
             );
           }
           return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
             itemCount: trips.length,
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) => _TripCard(controller: controller, trip: trips[index]),
