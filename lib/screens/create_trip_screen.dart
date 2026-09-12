@@ -13,10 +13,18 @@ class CreateTripScreen extends StatefulWidget {
   State<CreateTripScreen> createState() => _CreateTripScreenState();
 }
 
+class _MemberDraft {
+  _MemberDraft(this.id, this.name);
+
+  final int id;
+  String name;
+}
+
 class _CreateTripScreenState extends State<CreateTripScreen> {
   final nameController = TextEditingController();
   final destinationController = TextEditingController();
-  final members = <TextEditingController>[TextEditingController(text: '我')];
+  final members = <_MemberDraft>[_MemberDraft(0, '我')];
+  var nextMemberId = 1;
   DateTime? startDate;
   DateTime? endDate;
   late String currency;
@@ -32,7 +40,6 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
   void dispose() {
     nameController.dispose();
     destinationController.dispose();
-    for (final item in members) item.dispose();
     super.dispose();
   }
 
@@ -80,19 +87,23 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
             ],
           ),
           ...List.generate(members.length, (index) {
+            final draft = members[index];
             return Padding(
+              key: ValueKey('member-${draft.id}'),
               padding: const EdgeInsets.only(bottom: 10),
               child: Row(
                 children: [
                   Expanded(
-                    child: TextField(
-                      controller: members[index],
+                    child: TextFormField(
+                      key: ValueKey('member-field-${draft.id}'),
+                      initialValue: draft.name,
                       decoration: InputDecoration(labelText: '旅伴 ${index + 1}'),
+                      onChanged: (value) => draft.name = value,
                     ),
                   ),
                   if (members.length > 1)
                     IconButton(
-                      onPressed: () => setState(() => members.removeAt(index).dispose()),
+                      onPressed: () => setState(() => members.removeAt(index)),
                       icon: const Icon(Icons.remove_circle_outline),
                     ),
                 ],
@@ -133,7 +144,11 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
       );
       return;
     }
-    if (mounted) setState(() => members.add(TextEditingController()));
+    if (mounted) {
+      setState(() {
+        members.add(_MemberDraft(nextMemberId++, ''));
+      });
+    }
   }
 
   Widget _dateButton(String label, DateTime? value, ValueChanged<DateTime> onPicked) {
@@ -161,8 +176,9 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
   }
 
   Future<void> _save() async {
+    FocusScope.of(context).unfocus();
     final name = nameController.text.trim();
-    final memberNames = members.map((e) => e.text.trim()).where((e) => e.isNotEmpty).toList();
+    final memberNames = members.map((e) => e.name.trim()).where((e) => e.isNotEmpty).toList(growable: false);
     if (name.isEmpty || memberNames.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('請輸入旅程名稱並至少保留一位旅伴。')));
       return;
@@ -176,7 +192,8 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
     try {
       final destination = destinationController.text.trim();
       final inferredCountry = inferCountryCode('$destination $name');
-      final id = await widget.controller.services.repository.createTrip(
+      final repository = widget.controller.services.repository;
+      final id = await repository.createTrip(
         name: name,
         destination: destination,
         countryCode: inferredCountry.isEmpty ? null : inferredCountry,
@@ -185,6 +202,22 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
         baseCurrency: currency,
         memberNames: memberNames,
       );
+
+      // Defensive reconciliation: the repository should persist the complete
+      // list in one transaction. If a platform/input edge case leaves fewer
+      // rows than the submitted form, repair the missing tail immediately so
+      // the project detail screen always matches the creation form.
+      final storedMembers = await repository.getMembers(id);
+      if (storedMembers.length < memberNames.length) {
+        for (var i = storedMembers.length; i < memberNames.length; i++) {
+          await repository.addMember(id, memberNames[i]);
+        }
+      }
+      final verifiedMembers = await repository.getMembers(id);
+      if (verifiedMembers.length != memberNames.length) {
+        throw StateError('旅伴同步失敗：預期 ${memberNames.length} 人，實際 ${verifiedMembers.length} 人');
+      }
+
       await widget.controller.selectTrip(id);
       if (mounted) Navigator.pop(context, id);
     } catch (e) {
