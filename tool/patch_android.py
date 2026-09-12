@@ -11,6 +11,11 @@ if build.exists():
     text = build.read_text()
     text = re.sub(r'namespace\s*=\s*"[^"]+"', 'namespace = "com.tripbanban.app"', text)
     text = re.sub(r'applicationId\s*=\s*"[^"]+"', 'applicationId = "com.tripbanban.app"', text)
+    # Google Play requires Android 16 / API 36 for new apps and updates
+    # submitted after 2026-08-31. Pin both values explicitly so the release
+    # does not depend on a Flutter template default.
+    text = re.sub(r'compileSdk\s*=\s*[^\n]+', 'compileSdk = 36', text)
+    text = re.sub(r'targetSdk\s*=\s*[^\n]+', 'targetSdk = 36', text)
     build.write_text(text)
 
 if manifest.exists():
@@ -96,6 +101,10 @@ if build.exists():
         raise SystemExit('ERROR: Android namespace is not com.tripbanban.app.')
     if 'applicationId = "com.tripbanban.app"' not in build_text:
         raise SystemExit('ERROR: Android applicationId is not com.tripbanban.app.')
+    if 'compileSdk = 36' not in build_text:
+        raise SystemExit('ERROR: Android compileSdk is not 36.')
+    if 'targetSdk = 36' not in build_text:
+        raise SystemExit('ERROR: Android targetSdk is not 36.')
 
 for activity in main_activities:
     expected = 'package com.tripbanban.app' + (';' if activity.suffix == '.java' else '')
@@ -106,4 +115,4 @@ for launcher in launchers:
     if launcher.read_bytes() != icon.read_bytes():
         raise SystemExit(f'ERROR: Launcher icon mismatch in {launcher}.')
 
-print(f'Android patch OK: com.tripbanban.app/MainActivity; launcher icons={len(launchers)}; logo bytes={icon.stat().st_size}')
+print(f'Android patch OK: com.tripbanban.app/MainActivity; API=36; launcher icons={len(launchers)}; logo bytes={icon.stat().st_size}')
