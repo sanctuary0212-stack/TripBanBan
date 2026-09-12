@@ -79,4 +79,80 @@ void main() {
     expect(one.fundBalanceMinor, 1000);
     expect(two.fundBalanceMinor, 0);
   });
+
+  test('multiple expenses accumulate and editing one does not replace another', () async {
+    final tripId = await repo.createTrip(name: 'Tokyo', baseCurrency: 'JPY', memberNames: ['A', 'B']);
+    final members = await repo.getMembers(tripId);
+
+    final firstId = await repo.saveExpense(
+      ExpenseDraft(
+        tripId: tripId,
+        title: 'Hotel',
+        originalAmountMinor: 500,
+        originalCurrency: 'JPY',
+        baseAmountMinor: 500,
+        baseCurrency: 'JPY',
+        exchangeRateText: '1',
+        payerType: 'MEMBER',
+        payerMemberId: members[0].id,
+        categoryKey: 'STAY',
+        occurredAt: DateTime(2026, 9, 12, 9),
+        shares: [
+          ExpenseShareDraft(memberId: members[0].id, amountMinor: 250, mode: 'EQUAL'),
+          ExpenseShareDraft(memberId: members[1].id, amountMinor: 250, mode: 'EQUAL'),
+        ],
+      ),
+    );
+
+    await repo.saveExpense(
+      ExpenseDraft(
+        tripId: tripId,
+        title: 'Lunch',
+        originalAmountMinor: 800,
+        originalCurrency: 'JPY',
+        baseAmountMinor: 800,
+        baseCurrency: 'JPY',
+        exchangeRateText: '1',
+        payerType: 'MEMBER',
+        payerMemberId: members[1].id,
+        categoryKey: 'FOOD',
+        occurredAt: DateTime(2026, 9, 12, 12),
+        shares: [
+          ExpenseShareDraft(memberId: members[0].id, amountMinor: 400, mode: 'EQUAL'),
+          ExpenseShareDraft(memberId: members[1].id, amountMinor: 400, mode: 'EQUAL'),
+        ],
+      ),
+    );
+
+    var rows = await repo.getExpenses(tripId);
+    expect(rows, hasLength(2));
+    expect(rows.fold<int>(0, (sum, e) => sum + e.baseAmountMinor), 1300);
+    expect((await ledger.calculate(tripId)).totalExpenseMinor, 1300);
+
+    await repo.saveExpense(
+      ExpenseDraft(
+        id: firstId,
+        tripId: tripId,
+        title: 'Hotel updated',
+        originalAmountMinor: 700,
+        originalCurrency: 'JPY',
+        baseAmountMinor: 700,
+        baseCurrency: 'JPY',
+        exchangeRateText: '1',
+        payerType: 'MEMBER',
+        payerMemberId: members[0].id,
+        categoryKey: 'STAY',
+        occurredAt: DateTime(2026, 9, 12, 9),
+        shares: [
+          ExpenseShareDraft(memberId: members[0].id, amountMinor: 350, mode: 'EQUAL'),
+          ExpenseShareDraft(memberId: members[1].id, amountMinor: 350, mode: 'EQUAL'),
+        ],
+      ),
+    );
+
+    rows = await repo.getExpenses(tripId);
+    expect(rows, hasLength(2));
+    expect(rows.fold<int>(0, (sum, e) => sum + e.baseAmountMinor), 1500);
+    expect((await ledger.calculate(tripId)).totalExpenseMinor, 1500);
+  });
 }

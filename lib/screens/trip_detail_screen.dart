@@ -7,6 +7,7 @@ import '../data/local/app_database.dart';
 import '../domain/ledger_models.dart';
 import '../domain/money_input.dart';
 import '../domain/money_text.dart';
+import '../widgets/category_icon.dart';
 import 'add_expense_screen.dart';
 import 'manage_members_screen.dart';
 
@@ -58,7 +59,9 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                                   TextButton.icon(
                                     onPressed: () => Navigator.push(
                                       context,
-                                      MaterialPageRoute(builder: (_) => ManageMembersScreen(controller: widget.controller, tripId: trip.id)),
+                                      MaterialPageRoute(
+                                        builder: (_) => ManageMembersScreen(controller: widget.controller, tripId: trip.id),
+                                      ),
                                     ),
                                     icon: const Icon(Icons.group_outlined),
                                     label: const Text('管理旅伴'),
@@ -77,49 +80,17 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                     },
                   ),
                   const SizedBox(height: 12),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(18),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('公基金', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
-                          const SizedBox(height: 12),
-                          if (ledger != null)
-                            Text(
-                              MoneyText.formatMinor(ledger.fundBalanceMinor, trip.baseCurrency),
-                              style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
-                            ),
-                          const SizedBox(height: 14),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: () => _fundAction(trip, refund: false),
-                                  icon: const Icon(Icons.add),
-                                  label: const Text('繳入 / 補充'),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: () => _fundAction(trip, refund: true),
-                                  icon: const Icon(Icons.undo),
-                                  label: const Text('退款'),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                  _FundCard(controller: widget.controller, trip: trip, ledger: ledger),
+                  const SizedBox(height: 12),
+                  _TripExpenseSummary(controller: widget.controller, trip: trip),
                   const SizedBox(height: 16),
                   FilledButton.icon(
                     onPressed: () async {
                       await Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => AddExpenseScreen(controller: widget.controller, initialTripId: trip.id)),
+                        MaterialPageRoute(
+                          builder: (_) => AddExpenseScreen(controller: widget.controller, initialTripId: trip.id),
+                        ),
                       );
                       if (mounted) setState(() => refresh++);
                     },
@@ -219,6 +190,180 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
     await widget.controller.onTripDeleted(trip.id);
     if (mounted) Navigator.pop(context);
   }
+}
+
+class _FundCard extends StatelessWidget {
+  const _FundCard({required this.controller, required this.trip, required this.ledger});
+  final AppController controller;
+  final TripRow trip;
+  final LedgerSnapshot? ledger;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<MemberRow>>(
+      stream: controller.services.repository.watchMembers(trip.id),
+      builder: (context, membersSnapshot) {
+        final members = membersSnapshot.data ?? const <MemberRow>[];
+        return StreamBuilder<List<FundTransactionRow>>(
+          stream: controller.services.repository.watchFundTransactions(trip.id),
+          builder: (context, fundSnapshot) {
+            final transactions = fundSnapshot.data ?? const <FundTransactionRow>[];
+            final netByMember = <String, int>{for (final member in members) member.id: 0};
+            for (final tx in transactions) {
+              final memberId = tx.memberId;
+              if (memberId == null || !netByMember.containsKey(memberId)) continue;
+              if (tx.type == 'CONTRIBUTION') {
+                netByMember[memberId] = netByMember[memberId]! + tx.amountMinor;
+              } else if (tx.type == 'REFUND') {
+                netByMember[memberId] = netByMember[memberId]! - tx.amountMinor;
+              }
+            }
+            return Card(
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('公基金', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+                    const SizedBox(height: 12),
+                    if (ledger != null)
+                      Text(
+                        MoneyText.formatMinor(ledger!.fundBalanceMinor, trip.baseCurrency),
+                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                    if (members.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      const Text('每人匯入（繳入－退款）', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.black54)),
+                      const SizedBox(height: 8),
+                      for (final member in members)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            children: [
+                              Expanded(child: Text(member.displayName)),
+                              Text(
+                                MoneyText.formatMinor(netByMember[member.id] ?? 0, trip.baseCurrency),
+                                style: const TextStyle(fontWeight: FontWeight.w800),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => (context.findAncestorStateOfType<_TripDetailScreenState>())?._fundAction(trip, refund: false),
+                            icon: const Icon(Icons.add),
+                            label: const Text('繳入 / 補充'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => (context.findAncestorStateOfType<_TripDetailScreenState>())?._fundAction(trip, refund: true),
+                            icon: const Icon(Icons.undo),
+                            label: const Text('退款'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _TripExpenseSummary extends StatelessWidget {
+  const _TripExpenseSummary({required this.controller, required this.trip});
+  final AppController controller;
+  final TripRow trip;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<ExpenseRow>>(
+      stream: controller.services.repository.watchExpenses(trip.id),
+      builder: (context, expensesSnapshot) {
+        final expenses = expensesSnapshot.data ?? const <ExpenseRow>[];
+        return FutureBuilder<List<MemberRow>>(
+          future: controller.services.repository.getMembers(trip.id),
+          builder: (context, membersSnapshot) {
+            final members = membersSnapshot.data ?? const <MemberRow>[];
+            final total = expenses.fold<int>(0, (sum, e) => sum + e.baseAmountMinor);
+            final average = members.isEmpty ? 0 : (total / members.length).round();
+            final byCategory = <String, int>{};
+            for (final e in expenses) {
+              byCategory[e.categoryKey] = (byCategory[e.categoryKey] ?? 0) + e.baseAmountMinor;
+            }
+            String topCategory = '—';
+            if (byCategory.isNotEmpty) {
+              final top = byCategory.entries.reduce((a, b) => a.value >= b.value ? a : b);
+              topCategory = categoryLabel(top.key);
+            }
+            final latest = expenses.isEmpty ? null : expenses.first;
+            return Card(
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('本專案支出 Summary', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(child: _summaryMetric('總支出', MoneyText.formatMinor(total, trip.baseCurrency))),
+                        Expanded(child: _summaryMetric('支出筆數', '${expenses.length} 筆')),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(child: _summaryMetric('平均每人', MoneyText.formatMinor(average, trip.baseCurrency))),
+                        Expanded(child: _summaryMetric('最高類別', topCategory)),
+                      ],
+                    ),
+                    if (latest != null) ...[
+                      const SizedBox(height: 14),
+                      const Divider(height: 1),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          const Icon(Icons.history, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '最近：${latest.title.trim().isEmpty ? categoryLabel(latest.categoryKey) : latest.title}',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Text(MoneyText.formatMinor(latest.baseAmountMinor, trip.baseCurrency), style: const TextStyle(fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  static Widget _summaryMetric(String label, String value) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.black54, fontSize: 12)),
+          const SizedBox(height: 3),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
+        ],
+      );
 }
 
 class _TravelHeroCard extends StatelessWidget {
