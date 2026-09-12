@@ -1,6 +1,6 @@
-# 旅行伴伴 TripBanBan v0.8.2 — Android Local-First
+# 旅行伴伴 TripBanBan
 
-TripBanBan 是 Android-first 的短期旅遊記帳／分帳 App。v0.8.2 開始把前期 WebView Alpha 的核心能力正式搬到 Flutter + SQLite/Drift，本機資料是唯一真實來源；沒有 TripBanBan 自建雲端後端。
+TripBanBan 是短期旅遊記帳／分帳 App。v0.8.2 開始把前期 WebView Alpha 的核心能力正式搬到 Flutter + SQLite/Drift，本機資料是唯一真實來源；沒有 TripBanBan 自建雲端後端。
 
 ## 目前產品原則
 
