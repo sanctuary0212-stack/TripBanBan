@@ -25,6 +25,7 @@ jobs:
           python3 tool/run50_locale_drive.py
           python3 tool/run55_remove_drive.py
           python3 tool/run60_play_billing.py
+          python3 tool/run60_compilefix.py
 
       - name: Set up Java 21
         uses: actions/setup-java@v5
