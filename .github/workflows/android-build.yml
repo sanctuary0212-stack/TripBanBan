@@ -36,6 +36,9 @@ jobs:
       - name: Fix core localization and Drive OAuth configuration
         run: python3 tool/run50_locale_drive.py
 
+      - name: Remove Google Drive and gate local backup behind Plus
+        run: python3 tool/run55_remove_drive.py
+
       - name: Set up Java 21
         uses: actions/setup-java@v5
         with:
@@ -59,14 +62,12 @@ jobs:
         run: python3 tool/preflight.py
 
       - name: Bootstrap Android and build debug APK
-        env:
-          GOOGLE_SERVER_CLIENT_ID: ${{ vars.GOOGLE_SERVER_CLIENT_ID }}
         run: bash tool/bootstrap_android.sh
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: TripBanBan-v0.8.4-run50-localization-drive-apk
+          name: TripBanBan-v0.8.4-plus-local-backup-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
           retention-days: 14
@@ -75,7 +76,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: TripBanBan-v0.8.4-run50-diagnostics
+          name: TripBanBan-v0.8.4-plus-local-backup-diagnostics
           path: |
             build/**/test-results/**
             build/**/reports/**
