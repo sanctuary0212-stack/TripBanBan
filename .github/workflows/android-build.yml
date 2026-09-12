@@ -30,6 +30,9 @@ jobs:
       - name: Keep About section in English
         run: python3 tool/run47_about_english.py
 
+      - name: Adapt Run50 to Run42 localization layer
+        run: python3 tool/run50_compat.py
+
       - name: Fix core localization and Drive OAuth configuration
         run: python3 tool/run50_locale_drive.py
 
