@@ -27,6 +27,9 @@ jobs:
       - name: Fix localization compile issues
         run: python3 tool/run42_compilefix.py
 
+      - name: Keep About section in English
+        run: python3 tool/run47_about_english.py
+
       - name: Set up Java 21
         uses: actions/setup-java@v5
         with:
