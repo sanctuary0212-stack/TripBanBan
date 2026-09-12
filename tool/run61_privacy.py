@@ -22,7 +22,7 @@ replacement = """            _ReleaseNote(text: 'Removed Google Drive backup and
                 'TripBanBan Plus is a one-time purchase processed by Google Play. TripBanBan receives purchase and entitlement status needed to unlock Plus features, but does not process or store payment-card details.\\n\\n'
                 'The app contains no advertising SDK and is not designed for cross-app advertising tracking. Local data remains on your device until you delete it, clear app storage, uninstall the app, or replace it through an import. Exported backup files must be deleted separately from the storage location you selected.\\n\\n'
                 'Privacy inquiries: https://github.com/sanctuary0212-stack/TripBanBan/issues/new\\n\\n'
-                'Public policy URL: https://sanctuary0212-stack.github.io/TripBanBan/privacy/',
+                'Public policy URL: https://github.com/sanctuary0212-stack/TripBanBan/blob/main/PRIVACY.md',
               ),
             ),
           ]),
