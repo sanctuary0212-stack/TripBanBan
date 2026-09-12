@@ -36,6 +36,14 @@ flutter gen-l10n
 dart run build_runner build --delete-conflicting-outputs
 flutter analyze --no-fatal-warnings --no-fatal-infos
 flutter test
-flutter build apk --debug
+
+BUILD_ARGS=(--debug)
+if [ -n "${GOOGLE_SERVER_CLIENT_ID:-}" ]; then
+  BUILD_ARGS+=(--dart-define="GOOGLE_SERVER_CLIENT_ID=${GOOGLE_SERVER_CLIENT_ID}")
+  echo "Google Drive OAuth client ID supplied to Flutter build."
+else
+  echo "Google Drive OAuth client ID is not configured; Drive sign-in will show a setup message."
+fi
+flutter build apk "${BUILD_ARGS[@]}"
 
 echo "APK: $ROOT/build/app/outputs/flutter-apk/app-debug.apk"
