@@ -18,6 +18,12 @@ jobs:
       - name: Apply Run38 source hotfix
         run: python3 tool/run38_hotfix.py
 
+      - name: Apply complete UI localization strings
+        run: python3 tool/run42_strings.py
+
+      - name: Apply complete UI localization patch
+        run: python3 tool/run42_patch.py
+
       - name: Set up Java 21
         uses: actions/setup-java@v5
         with:
@@ -46,7 +52,7 @@ jobs:
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: TripBanBan-v0.8.4-debug-apk
+          name: TripBanBan-v0.8.4-localization-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
           retention-days: 14
@@ -55,7 +61,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: TripBanBan-v0.8.4-build-diagnostics
+          name: TripBanBan-v0.8.4-localization-diagnostics
           path: |
             build/**/test-results/**
             build/**/reports/**
