@@ -11,6 +11,13 @@ if build.exists():
     text = build.read_text()
     text = re.sub(r'namespace\s*=\s*"[^"]+"', 'namespace = "com.tripbanban.app"', text)
     text = re.sub(r'applicationId\s*=\s*"[^"]+"', 'applicationId = "com.tripbanban.app"', text)
+    # Google Play requires Android 16 / API 36 for new apps and updates
+    # submitted after 2026-08-31. Pin values explicitly so the release does
+    # not depend on Flutter template defaults. The current official Flutter
+    # in_app_purchase plugin supports Android API 24+.
+    text = re.sub(r'compileSdk\s*=\s*[^\n]+', 'compileSdk = 36', text)
+    text = re.sub(r'minSdk\s*=\s*[^\n]+', 'minSdk = 24', text)
+    text = re.sub(r'targetSdk\s*=\s*[^\n]+', 'targetSdk = 36', text)
     build.write_text(text)
 
 if manifest.exists():
@@ -22,10 +29,6 @@ if manifest.exists():
     text = text.replace('android:label="tripbanban_app"', 'android:label="旅行伴伴"')
     manifest.write_text(text)
 
-# Flutter creates MainActivity using the generated project package
-# (com.tripbanban.tripbanban_app). The applicationId/namespace above are
-# intentionally com.tripbanban.app, so keep the Activity class package aligned
-# with the manifest's relative android:name=".MainActivity".
 activity_roots = [
     root / 'android/app/src/main/kotlin',
     root / 'android/app/src/main/java',
@@ -61,9 +64,6 @@ for activity in main_activities:
         raise SystemExit(f'ERROR: Unable to patch package declaration in {activity}.')
     activity.write_text(text)
 
-# v0.8.4 stores the approved refined logo as small text chunks so the source
-# remains safely writable through repository tooling. Rebuild the PNG before
-# Flutter packages assets and Android compiles launcher resources.
 icon = root / 'assets/branding/tripbanban_icon.png'
 logo_parts_dir = root / 'assets/branding/logo_v084'
 logo_parts = sorted(logo_parts_dir.glob('part_*.b64')) if logo_parts_dir.exists() else []
@@ -89,13 +89,17 @@ if not launchers:
 for launcher in launchers:
     shutil.copyfile(icon, launcher)
 
-# Fail CI early if the generated Android identity is inconsistent.
 if build.exists():
     build_text = build.read_text()
-    if 'namespace = "com.tripbanban.app"' not in build_text:
-        raise SystemExit('ERROR: Android namespace is not com.tripbanban.app.')
-    if 'applicationId = "com.tripbanban.app"' not in build_text:
-        raise SystemExit('ERROR: Android applicationId is not com.tripbanban.app.')
+    for required in [
+        'namespace = "com.tripbanban.app"',
+        'applicationId = "com.tripbanban.app"',
+        'compileSdk = 36',
+        'minSdk = 24',
+        'targetSdk = 36',
+    ]:
+        if required not in build_text:
+            raise SystemExit(f'ERROR: Android build setting missing: {required}')
 
 for activity in main_activities:
     expected = 'package com.tripbanban.app' + (';' if activity.suffix == '.java' else '')
@@ -106,4 +110,4 @@ for launcher in launchers:
     if launcher.read_bytes() != icon.read_bytes():
         raise SystemExit(f'ERROR: Launcher icon mismatch in {launcher}.')
 
-print(f'Android patch OK: com.tripbanban.app/MainActivity; launcher icons={len(launchers)}; logo bytes={icon.stat().st_size}')
+print(f'Android patch OK: com.tripbanban.app/MainActivity; min=24 target=36; launcher icons={len(launchers)}; logo bytes={icon.stat().st_size}')
